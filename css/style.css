@@ -2,10 +2,6 @@
 	box-sizing: border-box;
 }
 
-html  {
-	scroll-behavior: smooth;
-}
-
 body {
 	background-color: #E7D4C0;
 	font-family: 'Trebuchet MS', sans-serif;
