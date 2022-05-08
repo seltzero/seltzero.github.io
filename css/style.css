@@ -2,6 +2,10 @@
 	box-sizing: border-box;
 }
 
+html  {
+	scroll-behavior: smooth;
+}
+
 body {
 	background-color: #E7D4C0;
 	font-family: 'Trebuchet MS', sans-serif;
@@ -14,9 +18,20 @@ div {
 	margin: 0.5em;
 }
 
+div, .hover-shadow {
+	transition-property: box-shadow;
+	transition-duration: 0.5s;
+	transition-timing-function: linear;
+}
+
+div:hover, .hover-shadow:hover {
+	box-shadow: 0 0 10px;
+}
+
 a {
-	color: #658EA9;
+	color: #537993;
 	text-decoration: none;
+	transition: all .3s linear;
 }
 
 a:hover {
@@ -28,14 +43,22 @@ a:hover {
 	#name-div {
 		position: relative !important;
 	}
-	#name-div, #about-me {
-		width: 95% !important;
+	#name-div, .content-div {
+		width: 96% !important;
 	}
 }
 
 #self-photo {
 	width: 70%;
 	border: 2px solid black;
+}
+
+#self-photo:active {
+	-webkit-transform: rotate(360deg);
+	-moz-transform: rotate(360deg);
+	-o-transform: rotate(360deg);
+	-ms-transform: rotate(360deg);
+	transform: rotate(360deg);
 }
 
 #main-container {
