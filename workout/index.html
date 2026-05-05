@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<title>Workout</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#111;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+input,textarea{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══ DATA ══════════════════════════════════════════════════════════
+const upper=[
+  {name:"Shoulder Raises",sets:"3x12"},
+  {name:"Biceps",sets:"3x12"},
+  {name:"Triceps",sets:"3x12"}
+];
+const reUpperAcc=[
+  {name:"Dumbbell Raises",sets:"3x12"},
+  {name:"Biceps",sets:"3x12"},
+  {name:"Triceps",sets:"3x12"}
+];
+const thuMain=[
+  {name:"Bench Press",sets:"3x12"},
+  {name:"Dumbbell Bench & Row",sets:"3x20"},
+  {name:"Dumbbell Press",sets:"3x20"},
+  {name:"Pull-up",sets:"3x9",noWeight:true}
+];
+const lowerAcc=[
+  {name:"Quads",sets:"3x12"},
+  {name:"Hamstrings",sets:"3x12"},
+  {name:"Calves",sets:"3x12"},
+  {name:"Shrugs",sets:"3x25"},
+  {name:"Abs",sets:"3x25",noWeight:true},
+  {name:"Plank",sets:"For time",weightLabel:"Time",placeholder:"e.g. 60 sec"}
+];
+const deLowerAcc=[
+  {name:"Quads",sets:"3x12"},
+  {name:"Hamstrings",sets:"3x12"},
+  {name:"Calves",sets:"3x12"},
+  {name:"Barbell Shrugs",sets:"3x25"},
+  {name:"Abs",sets:"3x25",noWeight:true},
+  {name:"Plank",sets:"For time",weightLabel:"Time",placeholder:"e.g. 60 sec"}
+];
+const PLAN=[
+  {
+    monday:{label:"ME Upper",exercises:[{name:"Incline Bench Press",sets:"x1"},{name:"Military Press",sets:"3x5"},{name:"Pull-up",sets:"3x9",noWeight:true},...upper]},
+    tuesday:{label:"ME Lower",exercises:[{name:"Deadlift",sets:"x1"},{name:"Stiff Leg Deadlifts",sets:"3x8-12"},{name:"Glute Bridges",sets:"3x8-12"},...lowerAcc]},
+    thursday:{label:"RE Upper",exercises:[...thuMain,...reUpperAcc]},
+    friday:{label:"DE Lower",exercises:[{name:"75% of ME",sets:"10x1"},{name:"Good Mornings",sets:"5x12"},...deLowerAcc]}
+  },
+  {
+    monday:{label:"ME Upper",exercises:[{name:"Close Grip Incline Bench Press",sets:"x1"},{name:"Z Press",sets:"3x5"},{name:"Chin-up",sets:"3x9",noWeight:true},...upper]},
+    tuesday:{label:"ME Lower",exercises:[{name:"Low Bar Squat (Parallel)",sets:"x1"},{name:"Stiff Leg Deadlifts",sets:"3x8-12"},{name:"Glute Bridges",sets:"3x8-12"},...lowerAcc]},
+    thursday:{label:"RE Upper",exercises:[...thuMain,...reUpperAcc]},
+    friday:{label:"DE Lower",exercises:[{name:"75% of ME",sets:"10x1"},{name:"Good Mornings",sets:"5x12"},...deLowerAcc]}
+  },
+  {
+    monday:{label:"ME Upper",exercises:[{name:"Floor Press",sets:"x1"},{name:"Seated Press",sets:"3x5"},{name:"Wide Pull-up",sets:"3x9",noWeight:true},...upper]},
+    tuesday:{label:"ME Lower",exercises:[{name:"2 inch Deficit Deadlift",sets:"x1"},{name:"Stiff Leg Deadlifts",sets:"3x8-12"},{name:"Glute Bridges",sets:"3x8-12"},...lowerAcc]},
+    thursday:{label:"RE Upper",exercises:[...thuMain,...reUpperAcc]},
+    friday:{label:"DE Lower",exercises:[{name:"75% of ME",sets:"10x1"},{name:"Good Mornings",sets:"5x12"},...deLowerAcc]}
+  },
+  {
+    monday:{label:"ME Upper",exercises:[{name:"Incline Press",sets:"x1"},{name:"Klokov Press",sets:"3x5"},{name:"Close Chin-up",sets:"3x9",noWeight:true},...upper]},
+    tuesday:{label:"ME Lower",exercises:[{name:"Squat (3-sec Pause)",sets:"x1"},{name:"Stiff Leg Deadlifts",sets:"3x8-12"},{name:"Glute Bridges",sets:"3x8-12"},...lowerAcc]},
+    thursday:{label:"RE Upper",exercises:[...thuMain,...reUpperAcc]},
+    friday:{label:"DE Lower",exercises:[{name:"75% of ME",sets:"10x1"},{name:"Good Mornings",sets:"5x12"},...deLowerAcc]}
+  }
+];
+
+// ═══ STATE ═════════════════════════════════════════════════════════
+const DOW=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+const WDAYS=new Set(["monday","tuesday","thursday","friday"]);
+const S={view:"log",week:1,maxWeeks:4,dateStr:toDateStr(new Date()),entries:{},refEntries:{},fridayNote:"",hist:[],showPicker:false,toast:"",toastTimer:null};
+
+// ═══ UTILS ═════════════════════════════════════════════════════════
+function toDateStr(d){return d.toISOString().split("T")[0]}
+function todayStr(){return toDateStr(new Date())}
+function toDow(ds){return DOW[new Date(ds+"T12:00:00").getDay()]}
+function fmtDate(ds){return new Date(ds+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}
+function addDays(ds,n){const d=new Date(ds+"T12:00:00");d.setDate(d.getDate()+n);return toDateStr(d)}
+function getWorkout(ds,w){
+  const dow=toDow(ds);
+  if(!WDAYS.has(dow))return null;
+  const base=PLAN[(w-1)%4]?.[dow];
+  if(!base)return null;
+  return Object.assign({},base,{label:base.label+" \u2022 Week "+w});
+}
+function parseWeight(s){if(!s)return null;const m=String(s).match(/[\d.]+/);return m?parseFloat(m[0]):null}
+function roundUp5(n){return Math.ceil(n/5)*5}
+function parseSets(s){const m=String(s).match(/^(\d+)x/i);return m?parseInt(m[1]):0}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+// ═══ STORAGE ═══════════════════════════════════════════════════════
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}
+function lsKeys(prefix){try{const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(prefix))r.push(k)}return r}catch{return[]}}
+function saveCfg(){lsSet("config",{w:S.week,mw:S.maxWeeks})}
+
+// ═══ DATA OPS ══════════════════════════════════════════════════════
+function loadDay(ds){
+  const saved=lsGet("log:"+ds);
+  S.entries=saved?(saved.entries||{}):{};
+  S.fridayNote="";
+  if(toDow(ds)==="friday"){
+    const tue=addDays(ds,-3);
+    const ts=lsGet("log:"+tue);
+    if(ts){
+      const tw=parseWeight((ts.entries||{})[0]?.weight);
+      if(tw){const c=roundUp5(tw*0.75);S.fridayNote="75% of "+tw+" lbs (Tue) = "+c+" lbs";if(!S.entries[0]?.weight)S.entries[0]=Object.assign({},S.entries[0]||{},{weight:String(c)})}
+      else S.fridayNote="Log Tuesday's main lift first";
+    } else S.fridayNote="No Tuesday log found";
+  }
+  const ref=addDays(ds,-28);
+  const rs=lsGet("log:"+ref);
+  S.refEntries=rs?(rs.entries||{}):{};
+}
+
+function loadHistory(){
+  const keys=lsKeys("log:");
+  const items=[];
+  keys.forEach(k=>{const d=lsGet(k);if(d)items.push({date:k.replace("log:",""),label:d.label||"",exercises:d.exercises||[],entries:d.entries||{}})});
+  items.sort((a,b)=>b.date.localeCompare(a.date));
+  S.hist=items;
+}
+
+function captureInputs(){
+  document.querySelectorAll("[data-idx][data-field]").forEach(el=>{
+    const i=el.dataset.idx,f=el.dataset.field;
+    if(!S.entries[i])S.entries[i]={};
+    S.entries[i][f]=el.value;
+  });
+}
+
+function saveDay(){
+  captureInputs();
+  const w=getWorkout(S.dateStr,S.week);
+  if(!w)return;
+  const ok=lsSet("log:"+S.dateStr,{label:w.label,exercises:w.exercises,entries:S.entries});
+  saveCfg();
+  showToast(ok?"Saved \u2713":"Error saving");
+}
+
+function showToast(msg){
+  if(S.toastTimer)clearTimeout(S.toastTimer);
+  S.toast=msg;render();
+  S.toastTimer=setTimeout(()=>{S.toast="";render()},2000);
+}
+
+// ═══ RENDER ════════════════════════════════════════════════════════
+function card(ex,idx,entry,refEntry,calcNote){
+  entry=entry||{};
+  const{weight="",diff="",prog="",note="",done=false,tally=0}=entry;
+  const wlbl=ex.weightLabel||"Weight";
+  const wph=ex.placeholder||"e.g. 225 lbs";
+  const ns=parseSets(ex.sets);
+  const refStr=refEntry?.weight?("Last: "+refEntry.weight+(refEntry.diff?" \u00b7 "+refEntry.diff:"")+(refEntry.prog?" \u00b7 "+(refEntry.prog==="up"?"up":"stay"):"")):"";
+
+  const tallyHtml=ns>=5?`
+    <div style="margin-bottom:10px">
+      <div style="color:#666;font-size:12px;margin-bottom:6px">Sets: <span style="color:${parseInt(tally)===ns?"#4ade80":"#f0f0f0"};font-weight:700">${parseInt(tally)||0}</span>/${ns}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${Array.from({length:ns},(_,i)=>`<button data-action="tally" data-idx="${idx}" data-val="${i}" style="width:30px;height:30px;border-radius:50%;border:none;font-size:11px;font-weight:700;background:${i<(parseInt(tally)||0)?"#3b82f6":"#2c2c2e"};color:${i<(parseInt(tally)||0)?"#fff":"#555"}">${i+1}</button>`).join("")}</div>
+    </div>`:"";
+
+  const weightRow=ex.noWeight?"":`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <span style="color:#666;font-size:12px;width:60px;flex-shrink:0">${wlbl}</span>
+      <input type="text" inputmode="decimal" autocomplete="off" data-idx="${idx}" data-field="weight" value="${esc(weight)}" placeholder="${esc(wph)}" style="flex:1;background:#2c2c2e;border:1px solid #3a3a3a;color:#f0f0f0;border-radius:8px;padding:8px 10px;font-size:15px;outline:none;width:100%">
+    </div>`;
+
+  const feelBtns=[["easy","#16a34a","Easy"],["med","#d97706","Med"],["hard","#dc2626","Hard"]].map(([v,c,l])=>
+    `<button data-action="diff" data-idx="${idx}" data-val="${v}" style="flex:1;padding:9px 4px;border-radius:8px;border:none;background:${diff===v?c:"#2c2c2e"};color:${diff===v?"#fff":"#666"};font-size:13px;font-weight:600">${l}</button>`).join("");
+
+  const nextBtns=[["up","Go Up"],["stay","Stay"]].map(([v,l])=>
+    `<button data-action="prog" data-idx="${idx}" data-val="${v}" style="flex:1;padding:9px 4px;border-radius:8px;border:none;background:${prog===v?"#7c3aed":"#2c2c2e"};color:${prog===v?"#fff":"#666"};font-size:13px;font-weight:600">${l}</button>`).join("");
+
+  return`<div style="background:#1c1c1e;border-radius:12px;padding:13px;margin-bottom:10px;border-left:${done?"3px solid #16a34a":"3px solid transparent"};opacity:${done?".75":"1"}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${refStr||calcNote?"3px":"11px"}">
+      <div><div style="font-weight:700;font-size:15px">${esc(ex.name)}</div><div style="color:#888;font-size:13px">${esc(ex.sets)}</div></div>
+      <button data-action="done" data-idx="${idx}" style="width:34px;height:34px;border-radius:50%;border:none;flex-shrink:0;background:${done?"#16a34a":"#2c2c2e"};color:${done?"#fff":"#555"};font-size:18px;margin-left:8px">\u2713</button>
+    </div>
+    ${calcNote?`<div style="background:#1e3a5f;border-radius:6px;padding:5px 9px;margin-bottom:10px;font-size:12px;color:#93c5fd">\uD83D\uDD22 ${esc(calcNote)}</div>`:""}
+    ${refStr?`<div style="color:#557;font-size:12px;margin-bottom:10px;font-style:italic">\uD83D\uDCCA ${esc(refStr)}</div>`:""}
+    ${tallyHtml}${weightRow}
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center"><span style="color:#666;font-size:12px;width:60px;flex-shrink:0">Feel</span>${feelBtns}</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center"><span style="color:#666;font-size:12px;width:60px;flex-shrink:0">Next</span>${nextBtns}</div>
+    <textarea data-idx="${idx}" data-field="note" rows="1" placeholder="Notes..." style="width:100%;background:#2c2c2e;border:1px solid #3a3a3a;color:#f0f0f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;resize:none">${esc(note)}</textarea>
+  </div>`;
+}
+
+function renderLog(){
+  const today=todayStr(),isToday=S.dateStr===today,isFri=toDow(S.dateStr)==="friday";
+  const workout=getWorkout(S.dateStr,S.week);
+  let h=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <button data-action="prev" style="background:#2c2c2e;border:none;color:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:18px">&#8249;</button>
+    <div style="flex:1;text-align:center">
+      ${isToday?'<div style="color:#3b82f6;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Today</div>':""}
+      <div style="font-weight:700;font-size:15px">${fmtDate(S.dateStr)}</div>
+    </div>
+    <button data-action="next" style="background:#2c2c2e;border:none;color:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:18px">&#8250;</button>
+  </div>`;
+  if(!isToday)h+=`<button data-action="today" style="display:block;width:100%;margin-bottom:12px;padding:8px;background:#2c2c2e;border:none;color:#3b82f6;border-radius:8px;font-size:13px">Back to Today</button>`;
+  if(!workout){
+    h+=`<div style="background:#1c1c1e;border-radius:14px;padding:36px;text-align:center"><div style="font-size:44px;margin-bottom:10px">\uD83D\uDE34</div><div style="font-weight:700;font-size:22px;color:#888">Rest Day</div><div style="font-size:13px;color:#555;margin-top:8px">Recovery is part of the program</div></div>`;
+  } else {
+    h+=`<div style="color:#3b82f6;font-weight:700;font-size:14px;margin-bottom:12px">${esc(workout.label)}</div>`;
+    workout.exercises.forEach((ex,i)=>{h+=card(ex,i,S.entries[i],S.refEntries[i],i===0&&isFri?S.fridayNote:"")});
+    const bg=S.toast&&S.toast.includes("\u2713")?"#15803d":"#16a34a";
+    h+=`<button data-action="save" style="width:100%;padding:15px;background:${bg};color:#fff;border:none;border-radius:12px;font-size:17px;font-weight:700;margin-top:4px">${esc(S.toast||"Save Workout")}</button>`;
+  }
+  return h;
+}
+
+function renderHistory(){
+  let h='<div style="font-weight:700;font-size:17px;margin-bottom:14px">Workout History</div>';
+  if(!S.hist.length)return h+'<div style="background:#1c1c1e;border-radius:14px;padding:24px;text-align:center;color:#666;font-size:14px">No workouts logged yet.</div>';
+  S.hist.forEach(item=>{
+    const exE=Object.entries(item.entries);
+    const rows=exE.map(([idx,e],j)=>{
+      const name=item.exercises?.[+idx]?.name||("Ex "+(+idx+1));
+      const sets=item.exercises?.[+idx]?.sets||"";
+      const isLast=j===exE.length-1;
+      const chips=[
+        e.weight?`<span style="background:#2c2c2e;border-radius:6px;padding:2px 8px;font-size:12px">${esc(e.weight)}</span>`:"",
+        e.diff?`<span style="border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;background:${e.diff==="easy"?"#14532d":e.diff==="med"?"#78350f":"#7f1d1d"};color:${e.diff==="easy"?"#4ade80":e.diff==="med"?"#fbbf24":"#f87171"}">${e.diff==="easy"?"Easy":e.diff==="med"?"Med":"Hard"}</span>`:"",
+        e.prog?`<span style="background:#3b0764;color:#c4b5fd;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">${e.prog==="up"?"Go Up":"Stay"}</span>`:""
+      ].filter(Boolean).join("");
+      return`<div style="margin-bottom:${isLast?0:8}px;padding-bottom:${isLast?0:8}px;border-bottom:${isLast?"none":"1px solid #2c2c2e"}">
+        <div style="font-size:13px;font-weight:600;color:#ddd;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          ${e.done?'<span style="color:#4ade80;font-size:12px">\u2713</span>':""}
+          ${esc(name)}<span style="color:#555;font-weight:400;font-size:12px">${esc(sets)}</span>
+        </div>
+        ${chips?`<div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>`:""}
+        ${e.note?`<div style="font-size:12px;color:#666;margin-top:4px;font-style:italic">${esc(e.note)}</div>`:""}
+      </div>`;
+    }).join("");
+    h+=`<div style="background:#1c1c1e;border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="color:#3b82f6;font-weight:700;font-size:14px">${fmtDate(item.date)}</div>
+      ${item.label?`<div style="color:#555;font-size:12px;margin-bottom:10px">${esc(item.label)}</div>`:""}
+      ${!exE.length?'<div style="color:#555;font-size:13px">No entries logged</div>':rows}
+    </div>`;
+  });
+  return h;
+}
+
+function render(){
+  const weekBtns=Array.from({length:S.maxWeeks},(_,i)=>{
+    const w=i+1;
+    const cycle=Math.ceil(w/4);
+    const cycleLabel=cycle>1?` <span style="color:#666;font-size:12px;font-weight:400">(Cycle ${cycle})</span>`:"";
+    return`<button data-action="pick" data-val="${w}" style="display:block;width:100%;margin-bottom:8px;padding:13px;border-radius:10px;border:none;background:${S.week===w?"#3b82f6":"#2c2c2e"};color:${S.week===w?"#fff":"#ccc"};font-size:16px;font-weight:600;text-align:left">Week ${w}${cycleLabel}</button>`;
+  }).join("");
+
+  const picker=S.showPicker?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:100">
+    <div style="background:#1c1c1e;border-radius:16px;width:280px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="padding:20px 20px 12px;font-weight:700;font-size:18px;text-align:center;flex-shrink:0">Cycle Week</div>
+      <div style="overflow-y:auto;padding:0 20px;flex:1">${weekBtns}</div>
+      <div style="padding:12px 20px 20px;border-top:1px solid #2c2c2e;flex-shrink:0">
+        <button data-action="add-cycle" style="display:block;width:100%;margin-bottom:8px;padding:13px;border-radius:10px;border:none;background:#2c2c2e;color:#3b82f6;font-size:15px;font-weight:700">+ Add Weeks ${S.maxWeeks+1}–${S.maxWeeks+4}</button>
+        <button data-action="close-picker" style="display:block;width:100%;padding:11px;border-radius:10px;border:1px solid #3a3a3a;background:none;color:#888;font-size:14px">Cancel</button>
+      </div>
+    </div>
+  </div>`:"";
+
+  const body=S.view==="log"?renderLog():renderHistory();
+  const al="#3b82f6",il="#555";
+  document.getElementById("app").innerHTML=`
+    ${picker}
+    <div style="background:#1c1c1e;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;border-bottom:1px solid #2c2c2e">
+      <span style="font-weight:800;font-size:18px">Workout</span>
+      <button data-action="open-picker" style="background:#3b82f6;color:#fff;border:none;border-radius:20px;padding:5px 14px;font-weight:700;font-size:14px">Week ${S.week} \u25be</button>
+    </div>
+    <div style="padding:14px 14px 90px">${body}</div>
+    <div style="position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#1c1c1e;border-top:1px solid #2c2c2e;display:flex">
+      <button data-action="nav-log" style="flex:1;padding:10px 0 12px;background:none;border:none;color:${S.view==="log"?al:il};font-size:11px;font-weight:${S.view==="log"?700:400};display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:22px">\uD83C\uDFCB\uFE0F</span>Log</button>
+      <button data-action="nav-hist" style="flex:1;padding:10px 0 12px;background:none;border:none;color:${S.view==="history"?al:il};font-size:11px;font-weight:${S.view==="history"?700:400};display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:22px">\uD83D\uDCCB</span>History</button>
+    </div>`;
+}
+
+// ═══ EVENTS ════════════════════════════════════════════════════════
+document.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-action]");
+  if(!btn)return;
+  const a=btn.dataset.action,idx=btn.dataset.idx,val=btn.dataset.val;
+  if(a==="prev"){captureInputs();S.dateStr=addDays(S.dateStr,-1);loadDay(S.dateStr);render()}
+  else if(a==="next"){captureInputs();S.dateStr=addDays(S.dateStr,1);loadDay(S.dateStr);render()}
+  else if(a==="today"){captureInputs();S.dateStr=todayStr();loadDay(S.dateStr);render()}
+  else if(a==="save"){saveDay()}
+  else if(a==="done"){captureInputs();if(!S.entries[idx])S.entries[idx]={};S.entries[idx].done=!S.entries[idx].done;render()}
+  else if(a==="diff"){captureInputs();if(!S.entries[idx])S.entries[idx]={};S.entries[idx].diff=S.entries[idx].diff===val?"":val;render()}
+  else if(a==="prog"){captureInputs();if(!S.entries[idx])S.entries[idx]={};S.entries[idx].prog=S.entries[idx].prog===val?"":val;render()}
+  else if(a==="tally"){captureInputs();if(!S.entries[idx])S.entries[idx]={};const i=parseInt(val),cur=parseInt(S.entries[idx].tally)||0;S.entries[idx].tally=i<cur?i:i+1;render()}
+  else if(a==="open-picker"){captureInputs();S.showPicker=true;render()}
+  else if(a==="close-picker"){S.showPicker=false;render()}
+  else if(a==="pick"){S.week=parseInt(val);saveCfg();S.showPicker=false;render()}
+  else if(a==="add-cycle"){S.maxWeeks+=4;saveCfg();render()}
+  else if(a==="nav-log"){captureInputs();S.view="log";S.dateStr=todayStr();loadDay(S.dateStr);render()}
+  else if(a==="nav-hist"){captureInputs();S.view="history";loadHistory();render()}
+});
+
+// ═══ INIT ══════════════════════════════════════════════════════════
+const cfg=lsGet("config");
+if(cfg){if(cfg.w>=1)S.week=cfg.w;if(cfg.mw>=4)S.maxWeeks=cfg.mw;}
+loadDay(S.dateStr);
+render();
+</script>
+</body>
+</html>
